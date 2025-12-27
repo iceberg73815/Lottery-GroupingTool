@@ -1,9 +1,26 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// 获取 API Key (支持多种环境变量格式)
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || (process.env as any).API_KEY || (process.env as any).GEMINI_API_KEY;
+
+// 只在有 API Key 时初始化
+let ai: GoogleGenAI | null = null;
+if (API_KEY) {
+  try {
+    ai = new GoogleGenAI({ apiKey: API_KEY });
+  } catch (error) {
+    console.warn('Failed to initialize Gemini API:', error);
+  }
+}
 
 export const generateTeamNames = async (count: number, theme: string = "cool"): Promise<string[]> => {
+  // 如果没有初始化 API，返回默认队名
+  if (!ai) {
+    console.info('Gemini API 未配置，使用默认队名');
+    return Array.from({ length: count }, (_, i) => `Team ${i + 1}`);
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -16,7 +33,7 @@ export const generateTeamNames = async (count: number, theme: string = "cool"): 
         }
       }
     });
-    
+
     return JSON.parse(response.text);
   } catch (error) {
     console.error("Error generating team names:", error);
@@ -25,6 +42,11 @@ export const generateTeamNames = async (count: number, theme: string = "cool"): 
 };
 
 export const generateWinnerCongratulation = async (name: string, vibe: string = "enthusiastic and funny"): Promise<string> => {
+  // 如果没有初始化 API，返回默认祝贺语
+  if (!ai) {
+    return `太棒了，${name}！你是今天的幸运儿！`;
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",

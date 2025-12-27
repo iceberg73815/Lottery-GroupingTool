@@ -1,9 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Gift, RotateCw, Trophy, AlertCircle, Repeat, UserMinus, Sparkles, Type as TypeIcon, ChevronUp, ChevronDown } from 'lucide-react';
+import { Gift, RotateCw, Trophy, AlertCircle, Repeat, UserMinus, ChevronUp, ChevronDown } from 'lucide-react';
 import { Participant } from '../types';
 import { shuffleArray } from '../utils';
-import { generateWinnerCongratulation } from '../geminiService';
 
 interface RaffleComponentProps {
   participants: Participant[];
@@ -16,13 +15,12 @@ const RaffleComponent: React.FC<RaffleComponentProps> = ({ participants }) => {
   const [currentRollingName, setCurrentRollingName] = useState<string | null>(null);
   const [winner, setWinner] = useState<Participant | null>(null);
   const [history, setHistory] = useState<Participant[]>([]);
-  const [aiMessage, setAiMessage] = useState<string>('');
-  
+  const [congratsMessage, setCongratsMessage] = useState<string>('');
+
   // Customization States
-  const [isAiMode, setIsAiMode] = useState(false);
   const [congratsText, setCongratsText] = useState<string>('恭喜 {name}！你是今天的幸运锦鲤！');
   const [showSettings, setShowSettings] = useState(true);
-  
+
   const rollingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -31,11 +29,11 @@ const RaffleComponent: React.FC<RaffleComponentProps> = ({ participants }) => {
 
   const startDraw = async () => {
     if (remainingPool.length === 0) return;
-    
+
     setIsRolling(true);
     setWinner(null);
-    setAiMessage('');
-    
+    setCongratsMessage('');
+
     let counter = 0;
     const maxIterations = 30;
     const interval = 80;
@@ -55,34 +53,30 @@ const RaffleComponent: React.FC<RaffleComponentProps> = ({ participants }) => {
   const finishDraw = async () => {
     const shuffled: Participant[] = shuffleArray(remainingPool);
     const chosen = shuffled[0];
-    
+
     if (!chosen) {
       setIsRolling(false);
       return;
     }
-    
+
     setWinner(chosen);
     setHistory(prev => [chosen, ...prev]);
     setIsRolling(false);
-    
+
     if (!allowRepeat) {
       setRemainingPool(prev => prev.filter(p => p.id !== chosen.id));
     }
 
-    if (isAiMode) {
-      const msg = await generateWinnerCongratulation(chosen.name, congratsText);
-      setAiMessage(msg);
-    } else {
-      const msg = congratsText.replace(/{name}/g, chosen.name);
-      setAiMessage(msg);
-    }
+    // 使用模板替换 {name} 占位符
+    const msg = congratsText.replace(/{name}/g, chosen.name);
+    setCongratsMessage(msg);
   };
 
   const resetRaffle = () => {
     setRemainingPool(participants);
     setHistory([]);
     setWinner(null);
-    setAiMessage('');
+    setCongratsMessage('');
   };
 
   if (participants.length === 0) {
@@ -97,9 +91,9 @@ const RaffleComponent: React.FC<RaffleComponentProps> = ({ participants }) => {
   return (
     <div className="max-w-4xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden relative">
-        
+
         {/* Toggle Settings Button - Replaced Icon with Text */}
-        <button 
+        <button
           onClick={() => setShowSettings(!showSettings)}
           className={`absolute top-6 right-6 px-4 py-2 rounded-xl text-xs font-bold transition-all z-20 flex items-center gap-2 shadow-sm ${showSettings ? 'bg-indigo-600 text-white shadow-indigo-100' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
         >
@@ -131,7 +125,7 @@ const RaffleComponent: React.FC<RaffleComponentProps> = ({ participants }) => {
                   {winner.name}
                 </span>
                 <p className="mt-6 text-xl font-medium text-slate-600 bg-white px-8 py-4 rounded-2xl shadow-md border border-indigo-100 max-w-2xl leading-relaxed">
-                  {aiMessage || '中奖啦！🎉'}
+                  {congratsMessage || '中奖啦！🎉'}
                 </p>
               </div>
             ) : (
@@ -145,36 +139,18 @@ const RaffleComponent: React.FC<RaffleComponentProps> = ({ participants }) => {
           {/* Configuration Controls (Toggleable) */}
           <div className={`mt-12 flex flex-col space-y-4 transition-all duration-300 overflow-hidden ${showSettings ? 'max-h-96 opacity-100 scale-100' : 'max-h-0 opacity-0 scale-95 pointer-events-none'}`}>
             <div className="flex flex-col md:flex-row items-center justify-center gap-3">
-              {/* Vibe/Template Toggle */}
-              <div className="flex items-center gap-1 bg-white p-1 rounded-2xl shadow-sm border border-slate-200">
-                <button
-                  onClick={() => setIsAiMode(false)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${!isAiMode ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                  <TypeIcon className="w-3.5 h-3.5" />
-                  固定模板
-                </button>
-                <button
-                  onClick={() => setIsAiMode(true)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${isAiMode ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  AI 智能模式
-                </button>
-              </div>
-
               {/* Input Field */}
               <div className="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-sm border border-slate-200 flex-grow max-w-md w-full">
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={congratsText}
                   onChange={(e) => setCongratsText(e.target.value)}
-                  placeholder={isAiMode ? "输入生成风格 (如: 夸张、幽默)" : "输入模板 (使用 {name} 代替姓名)"}
+                  placeholder="输入台词模板 (使用 {name} 代替姓名)"
                   className="bg-transparent border-none outline-none text-sm font-medium text-slate-700 w-full px-2"
                 />
               </div>
             </div>
-            
+
             <div className="h-px bg-slate-200 w-full max-w-lg mx-auto opacity-50"></div>
           </div>
 
@@ -184,11 +160,10 @@ const RaffleComponent: React.FC<RaffleComponentProps> = ({ participants }) => {
               <button
                 onClick={() => setAllowRepeat(!allowRepeat)}
                 disabled={isRolling}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                  allowRepeat 
-                    ? 'bg-amber-100 text-amber-700' 
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${allowRepeat
+                    ? 'bg-amber-100 text-amber-700'
                     : 'bg-slate-100 text-slate-600'
-                }`}
+                  }`}
               >
                 {allowRepeat ? <Repeat className="w-4 h-4" /> : <UserMinus className="w-4 h-4" />}
                 {allowRepeat ? '允许重复' : '不重复'}
@@ -219,7 +194,7 @@ const RaffleComponent: React.FC<RaffleComponentProps> = ({ participants }) => {
               <RotateCw className="w-6 h-6" />
             </button>
           </div>
-          
+
           <p className="mt-6 text-sm text-slate-400">
             剩余池: <span className="font-bold text-slate-600">{remainingPool.length}</span> 人
           </p>

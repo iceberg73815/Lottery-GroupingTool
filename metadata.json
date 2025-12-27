@@ -1,0 +1,5 @@
+{
+  "name": "抽奖和分组工具",
+  "description": "A comprehensive HR tool for managing company events. Features random prize draws with animations and automatic team grouping with AI-generated team names.",
+  "requestFramePermissions": []
+}
